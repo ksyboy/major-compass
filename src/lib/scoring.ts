@@ -21,13 +21,18 @@ function normalizeAnswer(answer: number, isReverse: boolean): number {
   return isReverse ? 1 - normalized : normalized;
 }
 
-function averageByWeights<T extends Record<string, number>>(scores: T, weights: T): T {
-  const next = { ...scores };
-  for (const key of Object.keys(next)) {
-    const weight = weights[key] || 0;
-    next[key] = weight === 0 ? 0.5 : Number((next[key] / weight).toFixed(4));
+function averageByWeights<T extends Record<string, number>>(
+  raw: T,
+  weights: Partial<Record<keyof T, number>>
+): T {
+  const next = { ...raw } as Record<keyof T, number>;
+
+  for (const key of Object.keys(next) as Array<keyof T>) {
+    const weight = weights[key] ?? 0;
+    next[key] = weight === 0 ? 0.5 : Number((next[key] / weight).toFixed(3));
   }
-  return next;
+
+  return next as T;
 }
 
 export function buildUserProfile(questions: Question[], answers: AnswerMap): UserProfile {
