@@ -12,11 +12,19 @@ type Step = "intro" | "fields" | "test" | "results";
 
 const riasecKeys: RiasecDimension[] = ["R", "I", "A", "S", "E", "C"];
 
+const NORMAL_QUESTION_COUNT = 90;
+const DEMO_QUESTION_COUNT = 18;
+const FORCE_DEMO_MODE = process.env.NEXT_PUBLIC_FORCE_DEMO_MODE === "true";
+const INITIAL_QUESTION_COUNT = FORCE_DEMO_MODE
+  ? DEMO_QUESTION_COUNT
+  : NORMAL_QUESTION_COUNT;
+
 export default function HomePage() {
   const [step, setStep] = useState<Step>("intro");
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<AnswerMap>({});
+  const [questionCount, setQuestionCount] = useState(INITIAL_QUESTION_COUNT);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -25,7 +33,10 @@ export default function HomePage() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string>("");
 
-  const questionSet = useMemo(() => getQuestionSet(questions, selectedFields, 90), [selectedFields]);
+  const questionSet = useMemo(
+  () => getQuestionSet(questions, selectedFields, questionCount),
+  [selectedFields, questionCount]
+);
   const currentQuestion = questionSet[currentIndex];
   const answeredCount = Object.keys(answers).filter((id) => questionSet.some((q) => q.id === id)).length;
 
@@ -34,6 +45,20 @@ export default function HomePage() {
       prev.includes(fieldId) ? prev.filter((id) => id !== fieldId) : [...prev, fieldId]
     );
   }
+
+  function startTestMode(count: number) {
+  setQuestionCount(count);
+  setSelectedFields([]);
+  setCurrentIndex(0);
+  setAnswers({});
+  setProfile(null);
+  setRecommendations([]);
+  setSelectedJob(null);
+  setCareerDetail(null);
+  setDetailSource("");
+  setSaveMessage("");
+  setStep("fields");
+}
 
   function selectAnswer(value: number) {
     if (!currentQuestion) return;
@@ -99,14 +124,18 @@ export default function HomePage() {
   }
 
   function restart() {
-    setStep("intro");
-    setSelectedFields([]);
-    setCurrentIndex(0);
-    setAnswers({});
-    setProfile(null);
-    setRecommendations([]);
-    setSaveMessage("");
-  }
+  setStep("intro");
+  setSelectedFields([]);
+  setQuestionCount(INITIAL_QUESTION_COUNT);
+  setCurrentIndex(0);
+  setAnswers({});
+  setProfile(null);
+  setRecommendations([]);
+  setSelectedJob(null);
+  setCareerDetail(null);
+  setDetailSource("");
+  setSaveMessage("");
+}
 
   return (
     <main>
@@ -145,9 +174,40 @@ export default function HomePage() {
         </p>
 
         <div className="btn-row">
-          <button className="btn btn-primary" onClick={() => setStep("fields")}>
-            검사 시작하기
-          </button>
+          {FORCE_DEMO_MODE ? (
+  <button
+    className="btn btn-primary"
+    onClick={() => startTestMode(DEMO_QUESTION_COUNT)}
+  >
+    발표용 빠른 검사 시작하기
+  </button>
+) : (
+  <>
+    <button
+      className="btn btn-primary"
+      onClick={() => startTestMode(NORMAL_QUESTION_COUNT)}
+    >
+      정밀 검사 시작하기
+    </button>
+
+    <button
+      className="btn btn-secondary"
+      onClick={() => startTestMode(DEMO_QUESTION_COUNT)}
+    >
+      발표용 빠른 검사
+    </button>
+  </>
+)}
+<button
+  className="btn btn-secondary"
+  onClick={() =>
+    alert(
+      "Next.js + Supabase + OpenAI API 기반 과제용 MVP입니다. 사용자의 응답을 바탕으로 RIASEC 성향 점수를 계산하고, 직업 DB와 매칭하여 추천 결과를 제공합니다."
+    )
+  }
+>
+  구조 보기
+</button>
           <button
             className="btn btn-secondary"
             onClick={() =>
@@ -174,7 +234,11 @@ export default function HomePage() {
         <h2>어떻게 작동하나요?</h2>
         <ol>
           <li>관심 분야를 선택합니다.</li>
-          <li>90개의 문항에 1~7점으로 답합니다.</li>
+          <li>
+  {FORCE_DEMO_MODE
+    ? "18개의 핵심 문항에 1~7점으로 답합니다."
+    : "정밀 검사는 90문항, 발표용 빠른 검사는 18문항으로 진행됩니다."}
+</li>
           <li>RIASEC, 가치관, 업무 방식 점수를 계산합니다.</li>
           <li>직업 DB와 매칭해 7~10개 직업을 추천합니다.</li>
           <li>직업을 선택하면 AI가 업무, 역량, 준비 단계를 정리합니다.</li>
@@ -200,7 +264,9 @@ export default function HomePage() {
         <section className="hero">
           <div className="container">
             <div className="card p-32">
-              <span className="badge">1단계 · 관심 분야 선택</span>
+              <span className="badge">
+  1단계 · 관심 분야 선택 · {questionCount}문항 모드
+</span>
               <h1 className="question">관심 있거나 원래 목표로 생각했던 분야를 선택하세요.</h1>
               <div className="field-grid">
                 {fields.map((field) => (
@@ -246,7 +312,9 @@ export default function HomePage() {
                 <div className="progress"><div style={{ width: `${((currentIndex + 1) / questionSet.length) * 100}%` }} /></div>
               </div>
 
-              <span className="badge">2단계 · 진로 성향 검사</span>
+              <span className="badge">
+  2단계 · 진로 성향 검사 · {questionCount}문항 모드
+</span>
               <h1 className="question">{currentQuestion.text}</h1>
               <div className="scale">
                 {[1, 2, 3, 4, 5, 6, 7].map((value) => (
@@ -281,7 +349,9 @@ export default function HomePage() {
           <div className="container">
             <div className="results-grid">
               <div className="card p-24">
-                <span className="badge">3단계 · 성향 분석 결과</span>
+                <span className="badge">
+  3단계 · 성향 분석 결과 · {questionCount}문항 모드
+</span>
                 <h2>나의 주요 성향</h2>
                 {riasecKeys.map((key) => (
                   <div className="bar-row" key={key}>
